@@ -1,0 +1,15 @@
+{
+  "baseline": "sac_profit_only_seed_11",
+  "algorithm": "sac",
+  "reward_mode": "profit_only",
+  "model_path": "D:\\MarkovianMDD_RRC_Trading\\results\\models\\multiseed_rl\\sac_profit_only\\sac_profit_only_seed_11.zip",
+  "metrics": {
+    "Total Return": 0.35061224682673275,
+    "Annualized Return": 0.1055231906626648,
+    "Sharpe Ratio": 1.228802625352762,
+    "Sortino Ratio": 1.585337989154162,
+    "Calmar Ratio": 1.5132607155911577,
+    "MDD": -0.06973232674016916,
+    "Turnover": 17.374623629944555
+  }
+}

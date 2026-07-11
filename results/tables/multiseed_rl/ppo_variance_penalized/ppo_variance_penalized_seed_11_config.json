@@ -1,0 +1,25 @@
+{
+  "name": "ppo_variance_penalized_seed_11",
+  "algorithm": "ppo",
+  "reward_mode": "variance_penalized",
+  "total_timesteps": 100000,
+  "seed": 11,
+  "device": "cpu",
+  "initial_capital": 10000.0,
+  "transaction_cost_rate": 0.001,
+  "lambda_base": 1000.0,
+  "alpha": 0.0,
+  "feature_columns": null,
+  "reward_kwargs": {
+    "lambda_penalty": 1000.0
+  },
+  "train_data_path": "D:\\MarkovianMDD_RRC_Trading\\data\\processed\\spy_vix_indicators_train.csv",
+  "validation_data_path": "D:\\MarkovianMDD_RRC_Trading\\data\\processed\\spy_vix_indicators_validation.csv",
+  "test_data_path": "D:\\MarkovianMDD_RRC_Trading\\data\\processed\\spy_vix_indicators_test.csv",
+  "model_dir": "D:\\MarkovianMDD_RRC_Trading\\results\\models\\multiseed_rl\\ppo_variance_penalized",
+  "figures_dir": "D:\\MarkovianMDD_RRC_Trading\\results\\figures",
+  "tables_dir": "D:\\MarkovianMDD_RRC_Trading\\results\\tables\\multiseed_rl\\ppo_variance_penalized",
+  "algo_kwargs": {},
+  "deterministic_eval": true,
+  "retrain_if_exists": false
+}

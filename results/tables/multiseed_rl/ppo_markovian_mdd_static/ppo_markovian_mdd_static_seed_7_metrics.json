@@ -1,0 +1,15 @@
+{
+  "baseline": "ppo_markovian_mdd_static_seed_7",
+  "algorithm": "ppo",
+  "reward_mode": "markovian_mdd",
+  "model_path": "D:\\MarkovianMDD_RRC_Trading\\results\\models\\multiseed_rl\\ppo_markovian_mdd_static\\ppo_markovian_mdd_static_seed_7.zip",
+  "metrics": {
+    "Total Return": 0.044148262161556984,
+    "Annualized Return": 0.014524034672802388,
+    "Sharpe Ratio": 0.18294206842929225,
+    "Sortino Ratio": 0.23150728885223437,
+    "Calmar Ratio": 0.04258654878239123,
+    "MDD": -0.3410474689324394,
+    "Turnover": 22.126151389351794
+  }
+}

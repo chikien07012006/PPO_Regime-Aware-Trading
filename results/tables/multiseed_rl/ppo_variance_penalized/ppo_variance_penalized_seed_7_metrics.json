@@ -1,0 +1,15 @@
+{
+  "baseline": "ppo_variance_penalized_seed_7",
+  "algorithm": "ppo",
+  "reward_mode": "variance_penalized",
+  "model_path": "D:\\MarkovianMDD_RRC_Trading\\results\\models\\multiseed_rl\\ppo_variance_penalized\\ppo_variance_penalized_seed_7.zip",
+  "metrics": {
+    "Total Return": -0.02079445576418859,
+    "Annualized Return": -0.006989306373696769,
+    "Sharpe Ratio": -0.22588394466227008,
+    "Sortino Ratio": -0.33571269862999975,
+    "Calmar Ratio": -0.07555835126471841,
+    "MDD": -0.09250210276835924,
+    "Turnover": 4.080775702379093
+  }
+}

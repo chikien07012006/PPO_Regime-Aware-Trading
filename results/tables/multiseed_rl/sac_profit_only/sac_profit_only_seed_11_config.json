@@ -1,0 +1,23 @@
+{
+  "name": "sac_profit_only_seed_11",
+  "algorithm": "sac",
+  "reward_mode": "profit_only",
+  "total_timesteps": 100000,
+  "seed": 11,
+  "device": "cpu",
+  "initial_capital": 10000.0,
+  "transaction_cost_rate": 0.001,
+  "lambda_base": 1.0,
+  "alpha": 0.0,
+  "feature_columns": null,
+  "reward_kwargs": {},
+  "train_data_path": "D:\\MarkovianMDD_RRC_Trading\\data\\processed\\spy_vix_indicators_train.csv",
+  "validation_data_path": "D:\\MarkovianMDD_RRC_Trading\\data\\processed\\spy_vix_indicators_validation.csv",
+  "test_data_path": "D:\\MarkovianMDD_RRC_Trading\\data\\processed\\spy_vix_indicators_test.csv",
+  "model_dir": "D:\\MarkovianMDD_RRC_Trading\\results\\models\\multiseed_rl\\sac_profit_only",
+  "figures_dir": "D:\\MarkovianMDD_RRC_Trading\\results\\figures",
+  "tables_dir": "D:\\MarkovianMDD_RRC_Trading\\results\\tables\\multiseed_rl\\sac_profit_only",
+  "algo_kwargs": {},
+  "deterministic_eval": true,
+  "retrain_if_exists": false
+}
