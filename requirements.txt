@@ -3,4 +3,5 @@ numpy>=1.26,<3.0
 yfinance>=0.2.54,<0.3
 gymnasium
 matplotlib>=3.8,<4.0
+torch>=2.3,<3.0
 stable-baselines3>=2.3,<3.0
