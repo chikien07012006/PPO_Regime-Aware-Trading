@@ -1,26 +1,33 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-RAW_DATA_DIR = PROJECT_ROOT / "data" / "raw"
-PROCESSED_DATA_DIR = PROJECT_ROOT / "data" / "processed"
-RAW_SPLIT_FILES = {
-    "train": RAW_DATA_DIR / "spy_vix_train.csv",
-    "validation": RAW_DATA_DIR / "spy_vix_validation.csv",
-    "test": RAW_DATA_DIR / "spy_vix_test.csv",
-}
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from baselines.common.asset_utils import (
+    DEFAULT_ASSET,
+    PROCESSED_DATA_DIR,
+    RAW_DATA_DIR,
+    SPLIT_ORDER,
+    SUPPORTED_ASSETS,
+    normalize_asset_symbol,
+    processed_split_path,
+    raw_split_path,
+)
 REQUIRED_COLUMNS = ["date", "open", "high", "low", "close", "volume", "vix_close"]
 
 
-def load_raw_splits() -> pd.DataFrame:
+def load_raw_splits(asset_symbol: str) -> pd.DataFrame:
     frames: list[pd.DataFrame] = []
-    for split_name, file_path in RAW_SPLIT_FILES.items():
+    for split_name in SPLIT_ORDER:
+        file_path = raw_split_path(asset_symbol, split_name)
         if not file_path.exists():
             raise FileNotFoundError(f"Missing raw split file: {file_path}")
         frame = pd.read_csv(file_path, parse_dates=["date"])
@@ -68,7 +75,7 @@ def add_indicators(frame: pd.DataFrame) -> pd.DataFrame:
     return enriched
 
 
-def save_processed_splits(frame: pd.DataFrame, output_dir: Path, drop_na: bool) -> None:
+def save_processed_splits(asset_symbol: str, frame: pd.DataFrame, output_dir: Path, drop_na: bool) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     indicator_columns = [
         "log_return",
@@ -78,17 +85,17 @@ def save_processed_splits(frame: pd.DataFrame, output_dir: Path, drop_na: bool) 
         "vix_zscore_252",
     ]
 
-    for split_name in RAW_SPLIT_FILES:
+    for split_name in SPLIT_ORDER:
         split_frame = frame.loc[frame["split"] == split_name].copy().reset_index(drop=True)
         if drop_na:
             split_frame = split_frame.dropna(subset=indicator_columns).reset_index(drop=True)
-        output_path = output_dir / f"spy_vix_indicators_{split_name}.csv"
+        output_path = processed_split_path(asset_symbol, split_name, root=output_dir)
         split_frame.to_csv(output_path, index=False)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Load split raw SPY/VIX data, compute daily indicators, and save processed splits."
+        description="Load split raw asset/VIX data, compute daily indicators, and save processed splits."
     )
     parser.add_argument(
         "--output-dir",
@@ -101,28 +108,36 @@ def main() -> None:
         action="store_true",
         help="Drop rows that do not yet have all indicator values because of rolling-window warmup.",
     )
+    parser.add_argument(
+        "--assets",
+        nargs="+",
+        default=[DEFAULT_ASSET, *[asset for asset in SUPPORTED_ASSETS if asset != DEFAULT_ASSET]],
+        help=f"Asset symbols to preprocess. Supported: {', '.join(SUPPORTED_ASSETS)}.",
+    )
     args = parser.parse_args()
 
-    raw = load_raw_splits()
-    processed = add_indicators(raw)
-    save_processed_splits(processed, args.output_dir, drop_na=args.drop_na)
+    assets = [normalize_asset_symbol(asset_symbol) for asset_symbol in args.assets]
+    for asset_symbol in assets:
+        raw = load_raw_splits(asset_symbol)
+        processed = add_indicators(raw)
+        save_processed_splits(asset_symbol, processed, args.output_dir, drop_na=args.drop_na)
 
-    for split_name in RAW_SPLIT_FILES:
-        split_frame = processed.loc[processed["split"] == split_name]
-        if args.drop_na:
-            split_frame = split_frame.dropna(
-                subset=[
-                    "log_return",
-                    "sma_ratio",
-                    "rsi_14",
-                    "bollinger_band_width",
-                    "vix_zscore_252",
-                ]
+        for split_name in SPLIT_ORDER:
+            split_frame = processed.loc[processed["split"] == split_name]
+            if args.drop_na:
+                split_frame = split_frame.dropna(
+                    subset=[
+                        "log_return",
+                        "sma_ratio",
+                        "rsi_14",
+                        "bollinger_band_width",
+                        "vix_zscore_252",
+                    ]
+                )
+            print(
+                f"{asset_symbol} {split_name}: {len(split_frame)} rows, "
+                f"{split_frame['date'].min().date()} -> {split_frame['date'].max().date()}"
             )
-        print(
-            f"{split_name}: {len(split_frame)} rows, "
-            f"{split_frame['date'].min().date()} -> {split_frame['date'].max().date()}"
-        )
 
 
 if __name__ == "__main__":

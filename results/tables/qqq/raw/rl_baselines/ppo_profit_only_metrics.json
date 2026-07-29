@@ -1,0 +1,15 @@
+{
+  "baseline": "ppo_profit_only",
+  "algorithm": "ppo",
+  "reward_mode": "profit_only",
+  "model_path": "D:\\MarkovianMDD_RRC_Trading\\results\\models\\qqq\\ppo_profit_only\\ppo_profit_only.zip",
+  "metrics": {
+    "Total Return": 0.2306333931985749,
+    "Annualized Return": 0.0717233437685536,
+    "Sharpe Ratio": 0.3825867037136946,
+    "Sortino Ratio": 0.50817206439941,
+    "Calmar Ratio": 0.2013726884720706,
+    "MDD": -0.35617215180846773,
+    "Turnover": 1.0
+  }
+}

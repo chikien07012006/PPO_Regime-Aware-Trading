@@ -1,0 +1,35 @@
+{
+  "buy_and_hold_spy": {
+    "metrics": {
+      "Total Return": 0.2306333931985749,
+      "Annualized Return": 0.0717233437685536,
+      "Sharpe Ratio": 0.3825867037136946,
+      "Sortino Ratio": 0.50817206439941,
+      "Calmar Ratio": 0.2013726884720706,
+      "MDD": -0.35617215180846773,
+      "Turnover": 1.0
+    }
+  },
+  "risk_parity_spy_cash": {
+    "metrics": {
+      "Total Return": 0.1317036617411831,
+      "Annualized Return": 0.04216055180206402,
+      "Sharpe Ratio": 0.2984643096944997,
+      "Sortino Ratio": 0.39544322164417917,
+      "Calmar Ratio": 0.15120223515727074,
+      "MDD": -0.27883550635485876,
+      "Turnover": 3.8471601633169437
+    }
+  },
+  "cppi_spy_cash": {
+    "metrics": {
+      "Total Return": -0.007239067888186068,
+      "Annualized Return": -0.002422068755051021,
+      "Sharpe Ratio": 0.10102735992024611,
+      "Sortino Ratio": 0.1361390245581062,
+      "Calmar Ratio": -0.006719344915602008,
+      "MDD": -0.3604620369207554,
+      "Turnover": 9.716824856298848
+    }
+  }
+}

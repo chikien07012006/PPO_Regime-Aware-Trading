@@ -23,11 +23,19 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
-from baselines.metrics import TRADING_DAYS_PER_YEAR, compute_performance_metrics
+from baselines.common.asset_utils import (
+    DEFAULT_ASSET,
+    PROCESSED_DATA_DIR,
+    cross_asset_figures_dir,
+    cross_asset_tables_dir,
+    normalize_asset_symbol,
+    processed_split_path,
+)
+from baselines.common.metrics import TRADING_DAYS_PER_YEAR, compute_performance_metrics
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_TEST_DATA_PATH = PROJECT_ROOT / "data" / "processed" / "spy_vix_indicators_test.csv"
+DEFAULT_TEST_DATA_PATH = processed_split_path(DEFAULT_ASSET, "test", root=PROCESSED_DATA_DIR)
 DEFAULT_RESULTS_DIR = PROJECT_ROOT / "results"
 DEFAULT_FIGURES_DIR = DEFAULT_RESULTS_DIR / "figures"
 DEFAULT_TABLES_DIR = DEFAULT_RESULTS_DIR / "tables"
@@ -296,6 +304,8 @@ def run_cppi_baseline(
 def plot_equity_curves(
     baseline_results: dict[str, dict[str, pd.Series | dict[str, float] | pd.DataFrame]],
     output_path: str | Path,
+    *,
+    title: str = "Backtest of Financial Baselines: Equity Curve Comparison",
 ) -> None:
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -320,9 +330,9 @@ def plot_equity_curves(
         "cppi_spy_cash": "#2ca02c",
     }
     label_map = {
-        "buy_and_hold_spy": "Buy & Hold (SPY)",
-        "risk_parity_spy_cash": "Risk-Parity Proxy (SPY + Cash)",
-        "cppi_spy_cash": "CPPI (SPY + Cash)",
+        "buy_and_hold_spy": "Buy & Hold",
+        "risk_parity_spy_cash": "Risk-Parity Proxy",
+        "cppi_spy_cash": "CPPI",
     }
 
     for baseline_name, result in baseline_results.items():
@@ -335,7 +345,7 @@ def plot_equity_curves(
             label=label_map.get(baseline_name, baseline_name),
         )
 
-    ax.set_title("Backtest of Financial Baselines: Equity Curve Comparison")
+    ax.set_title(title)
     ax.set_xlabel("Date")
     ax.set_ylabel("Portfolio Value (USD)")
     ax.xaxis.set_major_locator(mdates.MonthLocator(interval=4))
@@ -393,12 +403,21 @@ def save_baseline_results(
 
 
 def run_all_financial_baselines(
+    asset_symbol: str = DEFAULT_ASSET,
     data_path: str | Path = DEFAULT_TEST_DATA_PATH,
     initial_capital: float = 10000.0,
     transaction_cost_rate: float = 0.001,
     figures_dir: str | Path = DEFAULT_FIGURES_DIR,
     tables_dir: str | Path = DEFAULT_TABLES_DIR,
 ) -> dict[str, dict[str, pd.Series | dict[str, float] | pd.DataFrame]]:
+    normalized_asset = normalize_asset_symbol(asset_symbol)
+    if data_path == DEFAULT_TEST_DATA_PATH and normalized_asset != DEFAULT_ASSET:
+        data_path = processed_split_path(normalized_asset, "test", root=PROCESSED_DATA_DIR)
+    if figures_dir == DEFAULT_FIGURES_DIR and normalized_asset != DEFAULT_ASSET:
+        figures_dir = cross_asset_figures_dir(normalized_asset) / "financial_baselines"
+    if tables_dir == DEFAULT_TABLES_DIR and normalized_asset != DEFAULT_ASSET:
+        tables_dir = cross_asset_tables_dir(normalized_asset) / "financial_baselines"
+
     data = load_test_data(data_path)
 
     buy_and_hold_value, buy_and_hold_returns, buy_and_hold_metrics, buy_and_hold_diagnostics = run_buy_and_hold_baseline(
@@ -441,6 +460,7 @@ def run_all_financial_baselines(
     plot_equity_curves(
         baseline_results=baseline_results,
         output_path=Path(figures_dir) / "financial_baseline.png",
+        title=f"Backtest of Financial Baselines ({normalized_asset}): Equity Curve Comparison",
     )
     save_baseline_results(
         baseline_results=baseline_results,

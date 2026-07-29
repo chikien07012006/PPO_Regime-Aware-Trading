@@ -1,0 +1,15 @@
+{
+  "baseline": "ppo_hybrid_regime_aware_policy",
+  "algorithm": "ppo",
+  "reward_mode": "ppo_hybrid_regime_aware_policy",
+  "model_path": "D:\\MarkovianMDD_RRC_Trading\\results\\models\\cross_asset\\qqq\\ppo_hybrid_regime_aware_policy\\ppo_hybrid_regime_aware_policy.zip",
+  "metrics": {
+    "Total Return": 0.414852892261089,
+    "Annualized Return": 0.12280318224962716,
+    "Sharpe Ratio": 0.7810874134992699,
+    "Sortino Ratio": 1.0697061267750383,
+    "Calmar Ratio": 0.4799492549432292,
+    "MDD": -0.25586701299109826,
+    "Turnover": 39.421546552984104
+  }
+}

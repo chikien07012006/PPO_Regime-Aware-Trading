@@ -1,0 +1,15 @@
+{
+  "baseline": "sac_profit_only",
+  "algorithm": "sac",
+  "reward_mode": "profit_only",
+  "model_path": "D:\\MarkovianMDD_RRC_Trading\\results\\models\\qqq\\sac_profit_only\\sac_profit_only.zip",
+  "metrics": {
+    "Total Return": 0.10842744724831954,
+    "Annualized Return": 0.034956656455141566,
+    "Sharpe Ratio": 0.4683806190694595,
+    "Sortino Ratio": 0.623123928745995,
+    "Calmar Ratio": 0.5739162901814988,
+    "MDD": -0.06090898107124065,
+    "Turnover": 10.030559904962272
+  }
+}

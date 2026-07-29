@@ -1,0 +1,26 @@
+{
+  "name": "ppo_markovian_mdd_static",
+  "algorithm": "ppo",
+  "reward_mode": "markovian_mdd",
+  "asset_symbol": "DIA",
+  "total_timesteps": 100000,
+  "seed": 42,
+  "device": "cpu",
+  "initial_capital": 10000.0,
+  "transaction_cost_rate": 0.001,
+  "lambda_base": 0.15,
+  "alpha": 0.0,
+  "feature_columns": null,
+  "reward_kwargs": {
+    "lambda_penalty": 0.15
+  },
+  "train_data_path": "D:\\MarkovianMDD_RRC_Trading\\data\\processed\\dia_vix_indicators_train.csv",
+  "validation_data_path": "D:\\MarkovianMDD_RRC_Trading\\data\\processed\\dia_vix_indicators_validation.csv",
+  "test_data_path": "D:\\MarkovianMDD_RRC_Trading\\data\\processed\\dia_vix_indicators_test.csv",
+  "model_dir": "D:\\MarkovianMDD_RRC_Trading\\results\\models\\dia\\ppo_markovian_mdd_static",
+  "figures_dir": "D:\\MarkovianMDD_RRC_Trading\\results\\figures\\cross_asset\\dia\\rl_baselines",
+  "tables_dir": "D:\\MarkovianMDD_RRC_Trading\\results\\tables\\cross_asset\\dia\\rl_baselines",
+  "algo_kwargs": {},
+  "deterministic_eval": true,
+  "retrain_if_exists": false
+}

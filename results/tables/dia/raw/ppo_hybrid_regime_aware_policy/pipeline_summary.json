@@ -1,0 +1,51 @@
+{
+  "mode": "single_config",
+  "config": {
+    "name": "ppo_hybrid_regime_aware_policy",
+    "reward_mode": "ppo_hybrid_regime_aware_policy",
+    "lambda_base": 0.05,
+    "alpha": 0.5,
+    "beta_target": 0.02,
+    "timesteps": 30000,
+    "seed": 42,
+    "algo_kwargs": {
+      "learning_rate": 0.0001,
+      "n_steps": 1024,
+      "batch_size": 128,
+      "n_epochs": 10,
+      "ent_coef": 0.0
+    }
+  },
+  "validation": {
+    "metrics": {
+      "Total Return": -0.03922576395627586,
+      "Annualized Return": -0.019887212484639316,
+      "Sharpe Ratio": -0.17240785148941476,
+      "Sortino Ratio": -0.20471892979524386,
+      "Calmar Ratio": -0.08950119655776172,
+      "MDD": -0.22220052076962604,
+      "Turnover": 34.890273546812296
+    },
+    "final_return": -0.03922576395627586,
+    "behavior_stats": {
+      "mean_weight": 0.6688049006274803,
+      "max_weight": 1.0,
+      "min_weight": -0.5010977835738276,
+      "pct_full_long": 0.5149105367793241,
+      "pct_short": 0.0775347912524851,
+      "avg_weight_high_vix": 0.422894850925464,
+      "avg_weight_low_vix": 0.8861635962442437
+    },
+    "behavior_filter_passed": true
+  },
+  "model_path": "D:\\MarkovianMDD_RRC_Trading\\results\\models\\cross_asset\\dia\\ppo_hybrid_regime_aware_policy\\ppo_hybrid_regime_aware_policy.zip",
+  "test_metrics": {
+    "Total Return": 0.28110869327245136,
+    "Annualized Return": 0.08619923369471483,
+    "Sharpe Ratio": 0.6622606945686557,
+    "Sortino Ratio": 0.862211040357588,
+    "Calmar Ratio": 0.48381114111416623,
+    "MDD": -0.17816711185320588,
+    "Turnover": 55.59143933975656
+  }
+}

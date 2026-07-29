@@ -1,23 +1,28 @@
 # PPO Hybrid Regime-Aware Policy for RL Trading
 
-This repository is a research-oriented reinforcement learning trading framework built around a single-asset allocation problem: trading `SPY` against cash under changing volatility regimes. The project benchmarks several reward designs and financial baselines, then evaluates a final proposed method, **PPO Hybrid Regime-Aware Policy (PPO-HRAP)**, which combines drawdown-aware reward shaping, VIX-conditioned risk control, and a regime-guided action prior.
+This repository contains a research-oriented reinforcement learning framework for single-asset trading under changing volatility regimes. The core contribution is **PPO Hybrid Regime-Aware Policy (PPO-HRAP)**, a hybrid control design that combines drawdown-aware reward shaping, volatility-conditioned risk control, and a regime-guided action prior.
 
-## Highlights
+The project is organized to support:
 
-- Unified `Gymnasium` trading environment with injective reward design.
-- Financial baselines: Buy & Hold, Risk-Parity proxy, and CPPI.
-- RL baselines: PPO/SAC with profit-only reward, PPO with variance penalty, PPO with static Markovian MDD reward.
-- Proposed method: **PPO-HRAP**, a hybrid policy that uses:
-  - dynamic risk aversion through VIX-based conditioning,
-  - trend-aware directional priors,
-  - PPO fine-tuning around a regime-aware target exposure.
-- Full train/validation/test split with benchmark outputs, regime analysis, and paper-ready figures.
+- baseline benchmarking against financial and RL methods,
+- reproducible train/validation/test evaluation,
+- multi-seed reliability analysis,
+- cross-asset experiments on ETF proxies such as `SPY`, `QQQ`, and `DIA`.
 
-## Method Overview
+## Overview
 
-The final proposed method is not a pure reward-only design. It is a **hybrid control policy**:
+### Task
 
-1. **Reward shaping**
+- Risky asset: ETF proxy such as `SPY`, `QQQ`, or `DIA`
+- Defensive asset: cash
+- Regime signal: `^VIX`
+- Decision variable: portfolio weight in the risky asset
+
+### Proposed Method
+
+PPO-HRAP is not a reward-only baseline. It is a hybrid policy with three coordinated components:
+
+1. **Drawdown-aware reward shaping**
 
 ```text
 reward_t
@@ -33,18 +38,7 @@ reward_t
 lambda_rrc(t) = lambda_base * (1 + alpha * clamp(vix_zscore_t, -3, 3))
 ```
 
-3. **Regime-aware target exposure**
-
-The policy uses SPY trend and VIX stress signals to define a desired exposure profile:
-
-- bullish and calm: aggressive long
-- bullish but stressed: reduced long
-- bearish and stressed: light defensive short / near-flat exposure
-- crisis: stronger short bias
-
-4. **Action blending**
-
-The executed target weight is a blend between PPO output and the regime prior:
+3. **Regime-aware action guidance**
 
 ```text
 target_weight_t
@@ -52,67 +46,52 @@ target_weight_t
 + action_prior_weight * desired_weight_t
 ```
 
-This design keeps PPO flexible while discouraging pathological full-long behavior in stressed markets.
+The action prior is designed to keep the learned policy flexible while biasing it toward safer exposure targets during stressed regimes.
 
-## Benchmark Summary
+## Implemented Methods
 
-Test period: **2020-01-01 to 2022-12-31**
+### Financial baselines
 
-| Method | Total Return | Annualized Return | Sharpe | Sortino | Calmar | MDD |
-|---|---:|---:|---:|---:|---:|---:|
-| Buy & Hold (SPY) | 0.1760 | 0.0556 | 0.3420 | 0.4251 | 0.1630 | -0.3410 |
-| Risk-Parity Proxy (SPY + Cash) | 0.0799 | 0.0260 | 0.2281 | 0.2848 | 0.0898 | -0.2892 |
-| CPPI (SPY + Cash) | -0.0275 | -0.0093 | -0.0021 | -0.0026 | -0.0427 | -0.2174 |
-| PPO + Profit Only | 0.1760 | 0.0556 | 0.3420 | 0.4251 | 0.1630 | -0.3410 |
-| SAC + Profit Only | 0.1760 | 0.0556 | 0.3420 | 0.4251 | 0.1630 | -0.3410 |
-| PPO + Variance-Penalized Reward | 0.1356 | 0.0434 | 0.3384 | 0.4208 | 0.1829 | -0.2371 |
-| PPO + Static MDD Reward | 0.0591 | 0.0193 | 0.3341 | 0.4153 | 0.2034 | -0.0951 |
-| **PPO-HRAP (Our Proposed Method)** | **0.2762** | **0.0848** | **0.6447** | **0.8588** | **0.4592** | **-0.1847** |
+- Buy & Hold
+- Risk-Parity proxy
+- CPPI
 
-Primary result file: [results/tables/ppo_hybrid_regime_aware_policy/proposed_method_metrics.csv](results/tables/ppo_hybrid_regime_aware_policy/proposed_method_metrics.csv)
+### RL baselines
 
-## Figures
+- PPO + profit-only reward
+- SAC + profit-only reward
+- PPO + variance-penalized reward
+- PPO + static Markovian MDD reward
 
-### All-Method Equity Comparison
+### Proposed method
 
-![Backtest of All Methods](results/figures/backtest_all_methods_equity_comparison.png)
+- PPO-HRAP
 
-### Proposed Method With VIX Regime Overlay
-
-![Proposed Equity With Regimes](results/figures/ppo_hybrid_regime_aware_policy/proposed_equity_with_regimes.png)
-
-### Dynamic Risk Conditioning: VIX vs Lambda
-
-![Lambda vs VIX](results/figures/ppo_hybrid_regime_aware_policy/lambda_rrc_vs_vix.png)
-
-### Proposed vs Static MDD in Stress Regimes
-
-![Regime Comparison](results/figures/ppo_hybrid_regime_aware_policy/regime_bar_proposed_vs_static.png)
-
-### Pareto Frontier
-
-![Pareto Frontier](results/figures/ppo_hybrid_regime_aware_policy/pareto_return_vs_mdd.png)
-
-## Repository Structure
+## Repository Layout
 
 ```text
-PPO_Hybrid_Regime_Aware_Policy/
+.
 |-- baselines/
+|   |-- common/
+|   |   |-- analysis_utils.py
+|   |   |-- asset_utils.py
+|   |   `-- metrics.py
+|   |-- experiments/
+|   |   |-- run_cross_asset_experiments.py
+|   |   `-- run_multiseed_reliability.py
 |   |-- financial/
 |   |   `-- financial_baselines.py
-|   |-- rl/
-|   |   |-- rl_baseline_common.py
-|   |   |-- evaluate_rl_baselines.py
-|   |   |-- run_all_rl_baselines.py
-|   |   |-- train_ppo_profit_only.py
-|   |   |-- train_sac_profit_only.py
-|   |   |-- train_ppo_variance_penalized.py
-|   |   `-- train_ppo_markovian_mdd_static.py
 |   |-- ppo_hybrid_regime_aware_policy/
 |   |   |-- pipeline.py
 |   |   `-- run_proposed_method.py
-|   |-- analysis_utils.py
-|   `-- metrics.py
+|   `-- rl/
+|       |-- rl_baseline_common.py
+|       |-- run_all_rl_baselines.py
+|       |-- evaluate_rl_baselines.py
+|       |-- train_ppo_profit_only.py
+|       |-- train_sac_profit_only.py
+|       |-- train_ppo_variance_penalized.py
+|       `-- train_ppo_markovian_mdd_static.py
 |-- data/
 |   |-- crawl_data.py
 |   |-- preprocess_indicator_signals.py
@@ -135,57 +114,34 @@ PPO_Hybrid_Regime_Aware_Policy/
 `-- README.md
 ```
 
-## Data
+## Data Pipeline
 
-### Universe
+### Supported assets
 
-- Risky asset: `SPY`
-- Risk signal: `^VIX`
-- Portfolio: `SPY` + cash
+- `SPY`
+- `QQQ`
+- `DIA`
+- `IWM`
 
-### Splits
+Current paper-facing outputs are primarily organized around `SPY`, `QQQ`, and `DIA`. `IWM` is retained only as an archived experiment path.
+
+### Default chronological split
 
 - Train: `2010-01-01` to `2017-12-31`
 - Validation: `2018-01-01` to `2019-12-31`
 - Test: `2020-01-01` to `2022-12-31`
 
-### Processed Features
+### Processed features
 
-Core market features used in the environment and proposed method include:
+The processed datasets include the raw market columns plus indicator features such as:
 
 - `log_return`
 - `sma_ratio`
 - `rsi_14`
 - `bollinger_band_width`
 - `vix_zscore_252`
-- `ret_5d`
-- `ret_20d`
-- `ma_spread_5_20`
-- `vix_change_5d`
 
-Processed datasets:
-
-- [data/processed/spy_vix_indicators_train.csv](data/processed/spy_vix_indicators_train.csv)
-- [data/processed/spy_vix_indicators_validation.csv](data/processed/spy_vix_indicators_validation.csv)
-- [data/processed/spy_vix_indicators_test.csv](data/processed/spy_vix_indicators_test.csv)
-
-## Reward Library
-
-Implemented reward functions:
-
-- `profit_only` / `r0`
-- `variance_penalized` / `r1`
-- `differential_sharpe` / `r2`
-- `markovian_mdd` / `r3`
-- `ppo_hybrid_regime_aware_policy` / `ppo_hrap` / `hrap`
-
-The reward API is callable and environment-friendly:
-
-```python
-reward = reward_fn(env, transition)
-```
-
-Main environment file: [env/trading_env.py](env/trading_env.py)
+Raw split files are generated by [data/crawl_data.py](data/crawl_data.py), and processed split files are generated by [data/preprocess_indicator_signals.py](data/preprocess_indicator_signals.py).
 
 ## Installation
 
@@ -194,22 +150,29 @@ python -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements.txt
 ```
 
-Main dependencies:
+Core dependencies include:
 
-- `pandas`
 - `numpy`
-- `yfinance`
-- `gymnasium`
+- `pandas`
 - `matplotlib`
+- `gymnasium`
 - `stable-baselines3`
+- `yfinance`
 
 ## Reproducibility
 
-### 1. Download and preprocess data
+### 1. Prepare data
+
+Download aligned price and VIX data:
 
 ```powershell
-.\.venv\Scripts\python data\crawl_data.py
-.\.venv\Scripts\python data\preprocess_indicator_signals.py
+.\.venv\Scripts\python data\crawl_data.py --assets SPY QQQ DIA
+```
+
+Preprocess indicators:
+
+```powershell
+.\.venv\Scripts\python data\preprocess_indicator_signals.py --assets SPY QQQ DIA
 ```
 
 ### 2. Run financial baselines
@@ -226,45 +189,174 @@ Main dependencies:
 
 ### 4. Run the proposed method
 
+This entrypoint runs the current best single-run SPY configuration:
+
 ```powershell
 .\.venv\Scripts\python baselines\ppo_hybrid_regime_aware_policy\run_proposed_method.py
 ```
 
+Current single-run configuration:
+
+- `total_timesteps = 30_000`
+- `seed = 42`
+- `lambda_base = 0.05`
+- `alpha = 0.50`
+- `beta_target = 0.02`
+
+### 5. Run multi-seed reliability
+
+The multi-seed runner evaluates all RL baselines plus PPO-HRAP using seeds:
+
+- `7`
+- `11`
+- `19`
+- `23`
+- `42`
+
+Run on `SPY`:
+
+```powershell
+.\.venv\Scripts\python baselines\experiments\run_multiseed_reliability.py --asset SPY
+```
+
+Run on another supported asset:
+
+```powershell
+.\.venv\Scripts\python baselines\experiments\run_multiseed_reliability.py --asset QQQ
+```
+
+### 6. Run the cross-asset experiment suite
+
+This runner executes:
+
+- financial baselines,
+- RL baselines,
+- PPO-HRAP pipeline,
+- multi-seed reliability,
+
+for each selected asset.
+
+```powershell
+.\.venv\Scripts\python baselines\experiments\run_cross_asset_experiments.py --assets QQQ DIA
+```
+
+## Results Organization
+
+### Tables
+
+Results tables are organized by asset and purpose:
+
+```text
+results/tables/
+  spy/
+    raw/
+    curated/
+  qqq/
+    raw/
+    curated/
+  dia/
+    raw/
+    curated/
+  summary/
+```
+
+- `raw/` contains pipeline outputs written by the underlying experiment code.
+- `curated/` contains paper-facing summary tables such as all-method metrics and cumulative-return comparisons.
+- `summary/` contains cross-asset aggregate outputs.
+
+### Figures
+
+Figures are organized by asset:
+
+```text
+results/figures/
+  spy/
+  qqq/
+  dia/
+  cross_asset_proposed_vs_key_baselines_spy_qqq_dia.png
+  cross_asset_sharpe_heatmap_spy_qqq_dia.png
+```
+
+Each asset folder contains:
+
+- financial baseline comparison,
+- RL baseline comparison,
+- all-method backtest comparison,
+- cumulative return comparison,
+- PPO-HRAP diagnostic figures.
+
+### Models
+
+Model artifacts are organized by asset:
+
+```text
+results/models/
+  spy/
+    single_seed/
+    multiseed_rl/
+  qqq/
+  dia/
+  archive/
+```
+
 ## Key Output Files
 
-### Proposed method
+### SPY curated tables
 
-- [results/tables/ppo_hybrid_regime_aware_policy/proposed_method_metrics.csv](results/tables/ppo_hybrid_regime_aware_policy/proposed_method_metrics.csv)
-- [results/tables/ppo_hybrid_regime_aware_policy/proposed_method_portfolios.csv](results/tables/ppo_hybrid_regime_aware_policy/proposed_method_portfolios.csv)
-- [results/tables/ppo_hybrid_regime_aware_policy/best_config.json](results/tables/ppo_hybrid_regime_aware_policy/best_config.json)
+- [results/tables/spy/curated/all_methods_metrics.csv](results/tables/spy/curated/all_methods_metrics.csv)
+- [results/tables/spy/curated/all_methods_regime_metrics.csv](results/tables/spy/curated/all_methods_regime_metrics.csv)
+- [results/tables/spy/curated/cumulative_return_all_methods.csv](results/tables/spy/curated/cumulative_return_all_methods.csv)
 
-### Aggregate comparisons
+### PPO-HRAP raw outputs
 
-- [results/tables/all_methods_metrics.csv](results/tables/all_methods_metrics.csv)
-- [results/tables/all_methods_regime_metrics.csv](results/tables/all_methods_regime_metrics.csv)
+- [results/tables/spy/raw/ppo_hybrid_regime_aware_policy/proposed_method_metrics.csv](results/tables/spy/raw/ppo_hybrid_regime_aware_policy/proposed_method_metrics.csv)
+- [results/tables/spy/raw/ppo_hybrid_regime_aware_policy/proposed_method_portfolios.csv](results/tables/spy/raw/ppo_hybrid_regime_aware_policy/proposed_method_portfolios.csv)
+- [results/tables/spy/raw/ppo_hybrid_regime_aware_policy/best_config.json](results/tables/spy/raw/ppo_hybrid_regime_aware_policy/best_config.json)
 
-### Baseline tables
+### Multi-seed reliability outputs
 
-- [results/tables/financial baselines/financial_baselines_metrics.csv](<results/tables/financial baselines/financial_baselines_metrics.csv>)
-- [results/tables/rl_baselines/rl_baselines_metrics.csv](results/tables/rl_baselines/rl_baselines_metrics.csv)
+- [results/tables/spy/raw/multiseed_rl/per_seed_metrics.csv](results/tables/spy/raw/multiseed_rl/per_seed_metrics.csv)
+- [results/tables/spy/raw/multiseed_rl/summary_mean_std_metrics.csv](results/tables/spy/raw/multiseed_rl/summary_mean_std_metrics.csv)
+- [results/tables/spy/raw/multiseed_rl/summary_mean_std_metrics_numeric.csv](results/tables/spy/raw/multiseed_rl/summary_mean_std_metrics_numeric.csv)
 
-## Current Status
+### Cross-asset summaries
 
-This repository is now in a solid **benchmark-ready research state**:
+- [results/tables/summary/cross_asset_metrics_spy_qqq_dia.csv](results/tables/summary/cross_asset_metrics_spy_qqq_dia.csv)
+- [results/tables/summary/cross_asset_proposed_rank_summary_spy_qqq_dia.csv](results/tables/summary/cross_asset_proposed_rank_summary_spy_qqq_dia.csv)
 
-- environment design is stable,
-- baseline pipelines are implemented,
-- the proposed hybrid policy is trained and evaluated,
-- figures are regenerated from the latest results,
-- outputs are organized for analysis and paper writing.
+## Representative Figures
 
-The next natural extensions are:
+### SPY all-method comparison
 
-- multi-seed evaluation,
-- transaction-cost sensitivity studies,
-- ablation of action prior vs reward shaping,
-- additional assets and multi-asset allocation.
+![SPY all-method comparison](results/figures/spy/backtest_all_methods_equity_comparison.png)
 
-## License / Usage Note
+### SPY cumulative return comparison
 
-This repository is structured as an academic research prototype. Please verify assumptions, data handling, and evaluation settings before reusing it for production trading.
+![SPY cumulative return comparison](results/figures/spy/cumulative_return_all_methods_multiseed.png)
+
+### SPY proposed method with regime overlay
+
+![SPY proposed equity with regimes](results/figures/spy/ppo_hybrid_regime_aware_policy/proposed_equity_with_regimes.png)
+
+### Cross-asset summary
+
+![Cross-asset summary](results/figures/cross_asset_proposed_vs_key_baselines_spy_qqq_dia.png)
+
+## Notes on Evaluation
+
+- Training and testing both use the trading environment in [env/trading_env.py](env/trading_env.py).
+- During testing, the environment still executes portfolio transitions and accounting, but the learned agent is no longer optimized.
+- The reward function remains part of the environment interface, although benchmark reporting is based on realized portfolio trajectories and post-hoc metrics.
+
+## Current Scope
+
+The repository is currently in a strong benchmark-ready state for:
+
+- single-seed benchmarking on `SPY`,
+- multi-seed RL reliability analysis,
+- cross-asset transfer of the full experimental pipeline to `QQQ` and `DIA`,
+- figure and table generation for paper writing.
+
+## Usage Note
+
+This codebase is intended as an academic research prototype. It is suitable for experimentation, benchmarking, and ablation studies, but it should not be interpreted as production trading software.

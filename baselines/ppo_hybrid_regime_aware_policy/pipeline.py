@@ -8,12 +8,21 @@ from typing import Any
 
 import pandas as pd
 
+from baselines.common.asset_utils import (
+    DEFAULT_ASSET,
+    asset_slug,
+    cross_asset_figures_dir,
+    cross_asset_models_dir,
+    cross_asset_tables_dir,
+    get_processed_split_paths,
+    normalize_asset_symbol,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from baselines.analysis_utils import (
+from baselines.common.analysis_utils import (
     compute_regime_metrics,
     plot_all_methods_equity,
     plot_lambda_vs_vix,
@@ -22,7 +31,7 @@ from baselines.analysis_utils import (
     plot_regime_equity_with_background,
     save_regime_metrics,
 )
-from baselines.metrics import compute_performance_metrics
+from baselines.common.metrics import compute_performance_metrics
 from baselines.rl.rl_baseline_common import (
     FIGURES_DIR,
     RESULTS_DIR,
@@ -55,71 +64,141 @@ REGIME_METRICS_JSON = PROPOSED_TABLES_DIR / "all_methods_regime_metrics.json"
 VALIDATION_SUMMARY_JSON = PROPOSED_TABLES_DIR / "validation_candidate_summary.json"
 
 
+def get_proposed_feature_columns() -> list[str]:
+    return [
+        "log_return",
+        "sma_ratio",
+        "rsi_14",
+        "bollinger_band_width",
+        "vix_zscore_252",
+        "ret_5d",
+        "ret_20d",
+        "ma_spread_5_20",
+        "vix_change_5d",
+    ]
+
+
+def get_proposed_reward_kwargs(beta_target: float = 0.02) -> dict[str, float]:
+    return {
+        "beta_target": beta_target,
+        "beta_turnover": 0.0015,
+        "action_prior_weight": 0.60,
+        "stress_threshold": 0.80,
+        "crisis_threshold": 1.80,
+        "bull_ret20_threshold": 0.0,
+        "bull_ma_threshold": 0.0,
+        "bear_ret20_threshold": 0.0,
+        "bear_ma_threshold": 0.0,
+        "weight_bull": 1.0,
+        "weight_bull_stress": 0.50,
+        "weight_neutral": 0.30,
+        "weight_neutral_negative": 0.10,
+        "weight_bear": 0.0,
+        "weight_bear_stress": -0.10,
+        "weight_bear_crisis": -0.80,
+    }
+
+
+def get_proposed_algo_kwargs() -> dict[str, float | int]:
+    return {
+        "learning_rate": 1e-4,
+        "n_steps": 1024,
+        "batch_size": 128,
+        "n_epochs": 10,
+        "ent_coef": 0.0,
+    }
+
+
+def get_asset_context(asset_symbol: str = DEFAULT_ASSET) -> dict[str, Path | str]:
+    normalized_asset = normalize_asset_symbol(asset_symbol)
+    if normalized_asset == DEFAULT_ASSET:
+        return {
+            "asset_symbol": normalized_asset,
+            "train_data_path": TRAIN_DATA_PATH,
+            "validation_data_path": VALIDATION_DATA_PATH,
+            "test_data_path": TEST_DATA_PATH,
+            "results_dir": PROPOSED_RESULTS_DIR,
+            "models_dir": PROPOSED_MODELS_DIR,
+            "tables_dir": PROPOSED_TABLES_DIR,
+            "figures_dir": PROPOSED_FIGURES_DIR,
+            "grid_summary_csv": GRID_SUMMARY_CSV,
+            "grid_summary_json": GRID_SUMMARY_JSON,
+            "best_config_json": BEST_CONFIG_JSON,
+            "proposed_metrics_csv": PROPOSED_METRICS_CSV,
+            "proposed_metrics_json": PROPOSED_METRICS_JSON,
+            "proposed_portfolios_csv": PROPOSED_PORTFOLIOS_CSV,
+            "regime_metrics_csv": REGIME_METRICS_CSV,
+            "regime_metrics_json": REGIME_METRICS_JSON,
+            "validation_summary_json": VALIDATION_SUMMARY_JSON,
+            "pipeline_summary_json": PROPOSED_TABLES_DIR / "pipeline_summary.json",
+            "combined_train_path": PROPOSED_TABLES_DIR / "train_validation_combined.csv",
+            "all_methods_metrics_csv": PROPOSED_TABLES_DIR / "all_methods_metrics.csv",
+        }
+
+    split_paths = get_processed_split_paths(normalized_asset)
+    asset_tables_dir = cross_asset_tables_dir(normalized_asset) / PROPOSED_METHOD_ID
+    asset_figures_dir = cross_asset_figures_dir(normalized_asset) / PROPOSED_METHOD_ID
+    asset_models_dir = cross_asset_models_dir(normalized_asset) / PROPOSED_METHOD_ID
+    return {
+        "asset_symbol": normalized_asset,
+        "train_data_path": split_paths["train"],
+        "validation_data_path": split_paths["validation"],
+        "test_data_path": split_paths["test"],
+        "results_dir": cross_asset_models_dir(normalized_asset).parent / asset_slug(normalized_asset),
+        "models_dir": asset_models_dir,
+        "tables_dir": asset_tables_dir,
+        "figures_dir": asset_figures_dir,
+        "grid_summary_csv": asset_tables_dir / "grid_search_validation.csv",
+        "grid_summary_json": asset_tables_dir / "grid_search_validation.json",
+        "best_config_json": asset_tables_dir / "best_config.json",
+        "proposed_metrics_csv": asset_tables_dir / "proposed_method_metrics.csv",
+        "proposed_metrics_json": asset_tables_dir / "proposed_method_metrics.json",
+        "proposed_portfolios_csv": asset_tables_dir / "proposed_method_portfolios.csv",
+        "regime_metrics_csv": asset_tables_dir / "all_methods_regime_metrics.csv",
+        "regime_metrics_json": asset_tables_dir / "all_methods_regime_metrics.json",
+        "validation_summary_json": asset_tables_dir / "validation_candidate_summary.json",
+        "pipeline_summary_json": asset_tables_dir / "pipeline_summary.json",
+        "combined_train_path": asset_tables_dir / "train_validation_combined.csv",
+        "all_methods_metrics_csv": asset_tables_dir / "all_methods_metrics.csv",
+    }
+
+
 def build_single_config(
     *,
+    asset_symbol: str = DEFAULT_ASSET,
     total_timesteps: int = 30_000,
     seed: int = 42,
     lambda_base: float = 0.05,
     alpha: float = 0.50,
     beta_target: float = 0.02,
 ) -> RLBaselineConfig:
+    asset_context = get_asset_context(asset_symbol)
     return RLBaselineConfig(
         name=PROPOSED_METHOD_ID,
         algorithm="ppo",
         reward_mode="ppo_hybrid_regime_aware_policy",
+        asset_symbol=asset_context["asset_symbol"],
         total_timesteps=total_timesteps,
         seed=seed,
         device="cpu",
         lambda_base=lambda_base,
         alpha=alpha,
-        feature_columns=[
-            "log_return",
-            "sma_ratio",
-            "rsi_14",
-            "bollinger_band_width",
-            "vix_zscore_252",
-            "ret_5d",
-            "ret_20d",
-            "ma_spread_5_20",
-            "vix_change_5d",
-        ],
-        reward_kwargs={
-            "beta_target": beta_target,
-            "beta_turnover": 0.0015,
-            "action_prior_weight": 0.60,
-            "stress_threshold": 0.80,
-            "crisis_threshold": 1.80,
-            "bull_ret20_threshold": 0.0,
-            "bull_ma_threshold": 0.0,
-            "bear_ret20_threshold": 0.0,
-            "bear_ma_threshold": 0.0,
-            "weight_bull": 1.0,
-            "weight_bull_stress": 0.50,
-            "weight_neutral": 0.30,
-            "weight_neutral_negative": 0.10,
-            "weight_bear": 0.0,
-            "weight_bear_stress": -0.10,
-            "weight_bear_crisis": -0.80,
-        },
-        train_data_path=TRAIN_DATA_PATH,
-        validation_data_path=VALIDATION_DATA_PATH,
-        test_data_path=TEST_DATA_PATH,
-        model_dir=PROPOSED_MODELS_DIR,
-        figures_dir=PROPOSED_FIGURES_DIR,
-        tables_dir=PROPOSED_TABLES_DIR,
-        algo_kwargs={
-            "learning_rate": 1e-4,
-            "n_steps": 1024,
-            "batch_size": 128,
-            "n_epochs": 10,
-            "ent_coef": 0.0,
-        },
+        feature_columns=get_proposed_feature_columns(),
+        reward_kwargs=get_proposed_reward_kwargs(beta_target=beta_target),
+        train_data_path=asset_context["train_data_path"],
+        validation_data_path=asset_context["validation_data_path"],
+        test_data_path=asset_context["test_data_path"],
+        model_dir=asset_context["models_dir"],
+        figures_dir=asset_context["figures_dir"],
+        tables_dir=asset_context["tables_dir"],
+        algo_kwargs=get_proposed_algo_kwargs(),
         deterministic_eval=True,
         retrain_if_exists=True,
     )
 
 
-def build_grid_configs(total_timesteps: int = 200_000, seed: int = 42) -> list[RLBaselineConfig]:
+def build_grid_configs(asset_symbol: str = DEFAULT_ASSET, total_timesteps: int = 200_000, seed: int = 42) -> list[RLBaselineConfig]:
+    asset_context = get_asset_context(asset_symbol)
     configs: list[RLBaselineConfig] = []
     for lambda_base in (0.15, 0.20, 0.30):
         for alpha in (0.10, 0.20, 0.30):
@@ -128,57 +207,64 @@ def build_grid_configs(total_timesteps: int = 200_000, seed: int = 42) -> list[R
                     name=f"ppo_mdd_rrc_lb_{str(lambda_base).replace('.', 'p')}_a_{str(alpha).replace('.', 'p')}",
                     algorithm="ppo",
                     reward_mode="ppo_hybrid_regime_aware_policy",
+                    asset_symbol=asset_context["asset_symbol"],
                     total_timesteps=total_timesteps,
                     seed=seed,
                     device="cpu",
                     lambda_base=lambda_base,
                     alpha=alpha,
-                    reward_kwargs={},
-                    train_data_path=TRAIN_DATA_PATH,
-                    validation_data_path=VALIDATION_DATA_PATH,
-                    test_data_path=TEST_DATA_PATH,
-                    model_dir=PROPOSED_MODELS_DIR / "grid",
-                    figures_dir=PROPOSED_FIGURES_DIR,
-                    tables_dir=PROPOSED_TABLES_DIR / "grid",
-                    algo_kwargs={},
+                    feature_columns=get_proposed_feature_columns(),
+                    reward_kwargs=get_proposed_reward_kwargs(),
+                    train_data_path=asset_context["train_data_path"],
+                    validation_data_path=asset_context["validation_data_path"],
+                    test_data_path=asset_context["test_data_path"],
+                    model_dir=Path(asset_context["models_dir"]) / "grid",
+                    figures_dir=asset_context["figures_dir"],
+                    tables_dir=Path(asset_context["tables_dir"]) / "grid",
+                    algo_kwargs=get_proposed_algo_kwargs(),
                     deterministic_eval=True,
-                    retrain_if_exists=False,
+                    retrain_if_exists=True,
                 )
             )
     return configs
 
 
 def build_best_retrain_config(best_config: RLBaselineConfig, total_timesteps: int = 200_000) -> RLBaselineConfig:
-    combined_train_path = PROPOSED_TABLES_DIR / "train_validation_combined.csv"
+    asset_context = get_asset_context(best_config.asset_symbol)
+    combined_train_path = Path(asset_context["combined_train_path"])
     return RLBaselineConfig(
         name=PROPOSED_METHOD_ID,
         algorithm="ppo",
         reward_mode="ppo_hybrid_regime_aware_policy",
+        asset_symbol=best_config.asset_symbol,
         total_timesteps=total_timesteps,
         seed=best_config.seed,
         device="cpu",
         lambda_base=best_config.lambda_base,
         alpha=best_config.alpha,
-        reward_kwargs={},
+        feature_columns=list(best_config.feature_columns or get_proposed_feature_columns()),
+        reward_kwargs=dict(best_config.reward_kwargs),
         train_data_path=combined_train_path,
         validation_data_path=best_config.validation_data_path,
         test_data_path=best_config.test_data_path,
-        model_dir=PROPOSED_MODELS_DIR,
-        figures_dir=PROPOSED_FIGURES_DIR,
-        tables_dir=PROPOSED_TABLES_DIR,
-        algo_kwargs=best_config.algo_kwargs,
+        model_dir=asset_context["models_dir"],
+        figures_dir=asset_context["figures_dir"],
+        tables_dir=asset_context["tables_dir"],
+        algo_kwargs=dict(best_config.algo_kwargs),
         deterministic_eval=True,
-        retrain_if_exists=False,
+        retrain_if_exists=True,
     )
 
 
-def create_train_validation_combined_csv() -> Path:
-    train_frame = load_market_data(TRAIN_DATA_PATH)
-    validation_frame = load_market_data(VALIDATION_DATA_PATH)
+def create_train_validation_combined_csv(asset_symbol: str = DEFAULT_ASSET) -> Path:
+    asset_context = get_asset_context(asset_symbol)
+    train_frame = load_market_data(asset_context["train_data_path"])
+    validation_frame = load_market_data(asset_context["validation_data_path"])
     combined = pd.concat([train_frame, validation_frame], ignore_index=True)
     combined = combined.sort_values("date").reset_index(drop=True)
-    PROPOSED_TABLES_DIR.mkdir(parents=True, exist_ok=True)
-    output_path = PROPOSED_TABLES_DIR / "train_validation_combined.csv"
+    tables_dir = Path(asset_context["tables_dir"])
+    tables_dir.mkdir(parents=True, exist_ok=True)
+    output_path = Path(asset_context["combined_train_path"])
     combined.to_csv(output_path, index=False)
     return output_path
 
@@ -239,11 +325,12 @@ def passes_behavior_filter(behavior_stats: dict[str, float]) -> bool:
     return pct_full_long < 0.65 and pct_short < 0.65 and mean_weight < 0.75 and high_vs_low_ok
 
 
-def run_grid_search(total_timesteps: int = 200_000, seed: int = 42) -> tuple[pd.DataFrame, RLBaselineConfig]:
-    PROPOSED_TABLES_DIR.mkdir(parents=True, exist_ok=True)
+def run_grid_search(asset_symbol: str = DEFAULT_ASSET, total_timesteps: int = 200_000, seed: int = 42) -> tuple[pd.DataFrame, RLBaselineConfig]:
+    asset_context = get_asset_context(asset_symbol)
+    Path(asset_context["tables_dir"]).mkdir(parents=True, exist_ok=True)
     grid_results: list[dict[str, Any]] = []
 
-    for config in build_grid_configs(total_timesteps=total_timesteps, seed=seed):
+    for config in build_grid_configs(asset_symbol=asset_symbol, total_timesteps=total_timesteps, seed=seed):
         print(
             f"\n=== Grid train lambda_base={config.lambda_base:.2f}, alpha={config.alpha:.2f} "
             f"({config.total_timesteps} timesteps) ==="
@@ -268,16 +355,20 @@ def run_grid_search(total_timesteps: int = 200_000, seed: int = 42) -> tuple[pd.
         ["validation_final_return", "validation_sharpe"],
         ascending=[False, False],
     ).reset_index(drop=True)
-    grid_frame.to_csv(GRID_SUMMARY_CSV, index=False)
-    GRID_SUMMARY_JSON.write_text(grid_frame.to_json(orient="records", indent=2), encoding="utf-8")
+    Path(asset_context["grid_summary_csv"]).parent.mkdir(parents=True, exist_ok=True)
+    grid_frame.to_csv(asset_context["grid_summary_csv"], index=False)
+    Path(asset_context["grid_summary_json"]).write_text(
+        grid_frame.to_json(orient="records", indent=2),
+        encoding="utf-8",
+    )
 
     best_row = grid_frame.iloc[0]
     best_config = next(
         config
-        for config in build_grid_configs(total_timesteps=total_timesteps, seed=seed)
+        for config in build_grid_configs(asset_symbol=asset_symbol, total_timesteps=total_timesteps, seed=seed)
         if config.name == best_row["name"]
     )
-    BEST_CONFIG_JSON.write_text(
+    Path(asset_context["best_config_json"]).write_text(
         json.dumps(
             {
                 "selected_by": "validation_final_return",
@@ -295,23 +386,30 @@ def run_grid_search(total_timesteps: int = 200_000, seed: int = 42) -> tuple[pd.
 
 
 def save_proposed_test_outputs(result: dict[str, Any]) -> tuple[Path, Path]:
+    asset_context = get_asset_context(result["baseline_asset_symbol"])
     diagnostics = result["diagnostics"].copy()
     diagnostics.insert(0, "method", PROPOSED_METHOD_ID)
     diagnostics.insert(1, "date", diagnostics.index)
-    diagnostics.reset_index(drop=True).to_csv(PROPOSED_PORTFOLIOS_CSV, index=False)
+    diagnostics.reset_index(drop=True).to_csv(asset_context["proposed_portfolios_csv"], index=False)
 
     payload = {
         "method": PROPOSED_METHOD_ID,
         "metrics": {key: float(value) for key, value in result["metrics"].items()},
         "model_path": result["model_path"],
     }
-    PROPOSED_METRICS_JSON.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    pd.DataFrame([{"method": payload["method"], **payload["metrics"]}]).to_csv(PROPOSED_METRICS_CSV, index=False)
-    return PROPOSED_PORTFOLIOS_CSV, PROPOSED_METRICS_JSON
+    Path(asset_context["proposed_metrics_json"]).write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    pd.DataFrame([{"method": payload["method"], **payload["metrics"]}]).to_csv(
+        asset_context["proposed_metrics_csv"],
+        index=False,
+    )
+    return Path(asset_context["proposed_portfolios_csv"]), Path(asset_context["proposed_metrics_json"])
 
 
-def load_financial_results() -> dict[str, pd.DataFrame]:
-    path = TABLES_DIR / "financial_baselines_portfolios.csv"
+def load_financial_results(asset_symbol: str = DEFAULT_ASSET) -> dict[str, pd.DataFrame]:
+    if asset_symbol == DEFAULT_ASSET:
+        path = TABLES_DIR / "financial_baselines_portfolios.csv"
+    else:
+        path = cross_asset_tables_dir(asset_symbol) / "financial_baselines" / "financial_baselines_portfolios.csv"
     frame = pd.read_csv(path, parse_dates=["date"])
     results: dict[str, pd.DataFrame] = {}
     for baseline_name, subset in frame.groupby("baseline"):
@@ -319,8 +417,11 @@ def load_financial_results() -> dict[str, pd.DataFrame]:
     return results
 
 
-def load_rl_baseline_results() -> dict[str, pd.DataFrame]:
-    path = RL_TABLES_DIR / "rl_baselines_portfolios.csv"
+def load_rl_baseline_results(asset_symbol: str = DEFAULT_ASSET) -> dict[str, pd.DataFrame]:
+    if asset_symbol == DEFAULT_ASSET:
+        path = RL_TABLES_DIR / "rl_baselines_portfolios.csv"
+    else:
+        path = cross_asset_tables_dir(asset_symbol) / "rl_baselines" / "rl_baselines_portfolios.csv"
     frame = pd.read_csv(path, parse_dates=["date"])
     results: dict[str, pd.DataFrame] = {}
     for baseline_name, subset in frame.groupby("baseline"):
@@ -329,12 +430,13 @@ def load_rl_baseline_results() -> dict[str, pd.DataFrame]:
 
 
 def build_all_method_diagnostics(proposed_result: dict[str, Any]) -> dict[str, pd.DataFrame]:
-    financial = load_financial_results()
-    rl = load_rl_baseline_results()
+    asset_symbol = proposed_result["baseline_asset_symbol"]
+    financial = load_financial_results(asset_symbol)
+    rl = load_rl_baseline_results(asset_symbol)
     proposed_diagnostics = proposed_result["diagnostics"].copy()
     proposed_diagnostics = proposed_diagnostics.reset_index()
 
-    test_market = load_market_data(TEST_DATA_PATH)[["date", "vix_close", "vix_zscore_252"]].copy()
+    test_market = load_market_data(get_asset_context(asset_symbol)["test_data_path"])[["date", "vix_close", "vix_zscore_252"]].copy()
 
     merged: dict[str, pd.DataFrame] = {}
     for collection in [financial, rl]:
@@ -348,24 +450,26 @@ def build_all_method_diagnostics(proposed_result: dict[str, Any]) -> dict[str, p
 
 def save_all_method_regime_outputs(
     diagnostics_by_method: dict[str, pd.DataFrame],
+    asset_symbol: str = DEFAULT_ASSET,
 ) -> None:
+    asset_context = get_asset_context(asset_symbol)
     regime_metrics = compute_regime_metrics(diagnostics_by_method)
-    save_regime_metrics(regime_metrics, REGIME_METRICS_CSV, REGIME_METRICS_JSON)
+    save_regime_metrics(regime_metrics, asset_context["regime_metrics_csv"], asset_context["regime_metrics_json"])
 
     plot_regime_bar_comparison(
         regime_metrics=regime_metrics,
         proposed_method_name=PROPOSED_METHOD_ID,
         static_method_name="ppo_markovian_mdd_static",
-        output_path=PROPOSED_FIGURES_DIR / "regime_bar_proposed_vs_static.png",
+        output_path=Path(asset_context["figures_dir"]) / "regime_bar_proposed_vs_static.png",
     )
     plot_regime_equity_with_background(
         diagnostics=diagnostics_by_method[PROPOSED_METHOD_ID],
         method_name="PPO Hybrid Regime-Aware Policy (Our Proposed Method)",
-        output_path=PROPOSED_FIGURES_DIR / "proposed_equity_with_regimes.png",
+        output_path=Path(asset_context["figures_dir"]) / "proposed_equity_with_regimes.png",
     )
     plot_lambda_vs_vix(
         diagnostics=diagnostics_by_method[PROPOSED_METHOD_ID],
-        output_path=PROPOSED_FIGURES_DIR / "lambda_rrc_vs_vix.png",
+        output_path=Path(asset_context["figures_dir"]) / "lambda_rrc_vs_vix.png",
     )
 
     overall_metrics_rows: list[dict[str, Any]] = []
@@ -373,15 +477,19 @@ def save_all_method_regime_outputs(
         metrics = result_metrics_from_diagnostics(diagnostics)
         overall_metrics_rows.append({"method": method_name, **metrics})
     overall_metrics_frame = pd.DataFrame(overall_metrics_rows)
-    overall_metrics_frame.to_csv(PROPOSED_TABLES_DIR / "all_methods_metrics.csv", index=False)
+    overall_metrics_frame.to_csv(asset_context["all_methods_metrics_csv"], index=False)
     plot_pareto_frontier(
         metrics_frame=overall_metrics_frame,
-        output_path=PROPOSED_FIGURES_DIR / "pareto_return_vs_mdd.png",
+        output_path=Path(asset_context["figures_dir"]) / "pareto_return_vs_mdd.png",
     )
     plot_all_methods_equity(
         diagnostics_by_method,
-        output_path=FIGURES_DIR / "backtest_all_methods_equity_comparison.png",
-        title="Backtest of All Methods: Equity Curve Comparison",
+        output_path=(
+            FIGURES_DIR / "backtest_all_methods_equity_comparison.png"
+            if asset_symbol == DEFAULT_ASSET
+            else Path(asset_context["figures_dir"]).parent / "backtest_all_methods_equity_comparison.png"
+        ),
+        title=f"Backtest of All Methods ({asset_symbol}): Equity Curve Comparison",
     )
 
 
@@ -393,14 +501,19 @@ def result_metrics_from_diagnostics(diagnostics: pd.DataFrame) -> dict[str, floa
     )
 
 
-def run_proposed_method_pipeline(total_timesteps: int = 200_000, seed: int = 42) -> dict[str, Any]:
-    PROPOSED_RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    PROPOSED_TABLES_DIR.mkdir(parents=True, exist_ok=True)
-    PROPOSED_FIGURES_DIR.mkdir(parents=True, exist_ok=True)
-    PROPOSED_MODELS_DIR.mkdir(parents=True, exist_ok=True)
+def run_proposed_method_pipeline(
+    asset_symbol: str = DEFAULT_ASSET,
+    total_timesteps: int = 200_000,
+    seed: int = 42,
+) -> dict[str, Any]:
+    asset_context = get_asset_context(asset_symbol)
+    Path(asset_context["results_dir"]).mkdir(parents=True, exist_ok=True)
+    Path(asset_context["tables_dir"]).mkdir(parents=True, exist_ok=True)
+    Path(asset_context["figures_dir"]).mkdir(parents=True, exist_ok=True)
+    Path(asset_context["models_dir"]).mkdir(parents=True, exist_ok=True)
 
-    grid_frame, best_grid_config = run_grid_search(total_timesteps=total_timesteps, seed=seed)
-    combined_train_path = create_train_validation_combined_csv()
+    grid_frame, best_grid_config = run_grid_search(asset_symbol=asset_symbol, total_timesteps=total_timesteps, seed=seed)
+    combined_train_path = create_train_validation_combined_csv(asset_symbol=asset_symbol)
     best_retrain_config = build_best_retrain_config(best_grid_config, total_timesteps=total_timesteps)
     best_retrain_config.train_data_path = combined_train_path
 
@@ -414,7 +527,7 @@ def run_proposed_method_pipeline(total_timesteps: int = 200_000, seed: int = 42)
     save_proposed_test_outputs(proposed_test_result)
 
     diagnostics_by_method = build_all_method_diagnostics(proposed_test_result)
-    save_all_method_regime_outputs(diagnostics_by_method)
+    save_all_method_regime_outputs(diagnostics_by_method, asset_symbol=asset_symbol)
 
     summary_payload = {
         "best_grid_config": {
@@ -426,7 +539,7 @@ def run_proposed_method_pipeline(total_timesteps: int = 200_000, seed: int = 42)
         "test_metrics": proposed_test_result["metrics"],
         "grid_rows": len(grid_frame),
     }
-    (PROPOSED_TABLES_DIR / "pipeline_summary.json").write_text(
+    Path(asset_context["pipeline_summary_json"]).write_text(
         json.dumps(summary_payload, indent=2),
         encoding="utf-8",
     )
@@ -441,18 +554,21 @@ def run_proposed_method_pipeline(total_timesteps: int = 200_000, seed: int = 42)
 
 def run_proposed_method_single_config(
     *,
+    asset_symbol: str = DEFAULT_ASSET,
     total_timesteps: int = 30_000,
     seed: int = 42,
     lambda_base: float = 0.05,
     alpha: float = 0.50,
     beta_target: float = 0.02,
 ) -> dict[str, Any]:
-    PROPOSED_RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    PROPOSED_TABLES_DIR.mkdir(parents=True, exist_ok=True)
-    PROPOSED_FIGURES_DIR.mkdir(parents=True, exist_ok=True)
-    PROPOSED_MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    asset_context = get_asset_context(asset_symbol)
+    Path(asset_context["results_dir"]).mkdir(parents=True, exist_ok=True)
+    Path(asset_context["tables_dir"]).mkdir(parents=True, exist_ok=True)
+    Path(asset_context["figures_dir"]).mkdir(parents=True, exist_ok=True)
+    Path(asset_context["models_dir"]).mkdir(parents=True, exist_ok=True)
 
     config = build_single_config(
+        asset_symbol=asset_symbol,
         total_timesteps=total_timesteps,
         seed=seed,
         lambda_base=lambda_base,
@@ -471,7 +587,7 @@ def run_proposed_method_single_config(
     validation_behavior = compute_behavior_stats(validation_payload["validation_result"]["diagnostics"])
     validation_passed = passes_behavior_filter(validation_behavior)
 
-    VALIDATION_SUMMARY_JSON.write_text(
+    Path(asset_context["validation_summary_json"]).write_text(
         json.dumps(
             {
                 "mode": "single_candidate_validation",
@@ -495,8 +611,9 @@ def run_proposed_method_single_config(
         encoding="utf-8",
     )
 
-    combined_train_path = create_train_validation_combined_csv()
+    combined_train_path = create_train_validation_combined_csv(asset_symbol=asset_symbol)
     retrain_config = build_single_config(
+        asset_symbol=asset_symbol,
         total_timesteps=total_timesteps,
         seed=seed,
         lambda_base=lambda_base,
@@ -515,7 +632,7 @@ def run_proposed_method_single_config(
     save_single_result(retrain_config, proposed_test_result)
     save_proposed_test_outputs(proposed_test_result)
 
-    BEST_CONFIG_JSON.write_text(
+    Path(asset_context["best_config_json"]).write_text(
         json.dumps(
             {
                 "selected_by": "manual_single_candidate_calmar_with_anti_full_long_validation",
@@ -537,7 +654,7 @@ def run_proposed_method_single_config(
     )
 
     diagnostics_by_method = build_all_method_diagnostics(proposed_test_result)
-    save_all_method_regime_outputs(diagnostics_by_method)
+    save_all_method_regime_outputs(diagnostics_by_method, asset_symbol=asset_symbol)
 
     summary_payload = {
         "mode": "single_config",
@@ -560,7 +677,7 @@ def run_proposed_method_single_config(
         "model_path": str(best_model_path),
         "test_metrics": proposed_test_result["metrics"],
     }
-    (PROPOSED_TABLES_DIR / "pipeline_summary.json").write_text(
+    Path(asset_context["pipeline_summary_json"]).write_text(
         json.dumps(summary_payload, indent=2),
         encoding="utf-8",
     )

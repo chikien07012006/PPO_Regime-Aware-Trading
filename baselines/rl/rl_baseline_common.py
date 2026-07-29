@@ -25,18 +25,25 @@ import matplotlib.dates as mdates
 from stable_baselines3 import PPO, SAC
 from stable_baselines3.common.base_class import BaseAlgorithm
 
+from baselines.common.asset_utils import (
+    DEFAULT_ASSET,
+    PROCESSED_DATA_DIR,
+    asset_slug,
+    normalize_asset_symbol,
+    processed_split_path,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from baselines.metrics import compute_performance_metrics
+from baselines.common.metrics import compute_performance_metrics
 from env.trading_env import TradingEnv
 
 
-TRAIN_DATA_PATH = PROJECT_ROOT / "data" / "processed" / "spy_vix_indicators_train.csv"
-VALIDATION_DATA_PATH = PROJECT_ROOT / "data" / "processed" / "spy_vix_indicators_validation.csv"
-TEST_DATA_PATH = PROJECT_ROOT / "data" / "processed" / "spy_vix_indicators_test.csv"
+TRAIN_DATA_PATH = processed_split_path(DEFAULT_ASSET, "train", root=PROCESSED_DATA_DIR)
+VALIDATION_DATA_PATH = processed_split_path(DEFAULT_ASSET, "validation", root=PROCESSED_DATA_DIR)
+TEST_DATA_PATH = processed_split_path(DEFAULT_ASSET, "test", root=PROCESSED_DATA_DIR)
 RESULTS_DIR = PROJECT_ROOT / "results"
 FIGURES_DIR = RESULTS_DIR / "figures"
 TABLES_DIR = RESULTS_DIR / "tables"
@@ -45,11 +52,33 @@ RL_TABLES_DIR = TABLES_DIR / "rl_baselines"
 TRANSACTION_COST_RATE = 0.001
 
 
+def get_data_split_paths(asset_symbol: str) -> dict[str, Path]:
+    normalized_asset = normalize_asset_symbol(asset_symbol)
+    return {
+        "train": processed_split_path(normalized_asset, "train", root=PROCESSED_DATA_DIR),
+        "validation": processed_split_path(normalized_asset, "validation", root=PROCESSED_DATA_DIR),
+        "test": processed_split_path(normalized_asset, "test", root=PROCESSED_DATA_DIR),
+    }
+
+
+def _candidate_warmup_path(data_path: Path) -> Path | None:
+    stem = data_path.stem
+    if not stem.endswith("_indicators_validation") and not stem.endswith("_indicators_test"):
+        return None
+
+    if stem.endswith("_indicators_validation"):
+        return data_path.with_name(stem.replace("_indicators_validation", "_indicators_train") + data_path.suffix)
+    if stem.endswith("_indicators_test"):
+        return data_path.with_name(stem.replace("_indicators_test", "_indicators_validation") + data_path.suffix)
+    return None
+
+
 @dataclass(slots=True)
 class RLBaselineConfig:
     name: str
     algorithm: str
     reward_mode: str
+    asset_symbol: str = DEFAULT_ASSET
     total_timesteps: int = 100_000
     seed: int = 42
     device: str = "cpu"
@@ -106,11 +135,7 @@ def load_market_data(
 
     warmup_frame: pd.DataFrame | None = None
     if required_lookback > 0:
-        candidate_warmup_path: Path | None = None
-        if data_path.name == "spy_vix_indicators_validation.csv":
-            candidate_warmup_path = data_path.with_name("spy_vix_indicators_train.csv")
-        elif data_path.name == "spy_vix_indicators_test.csv":
-            candidate_warmup_path = data_path.with_name("spy_vix_indicators_validation.csv")
+        candidate_warmup_path = _candidate_warmup_path(data_path)
 
         if candidate_warmup_path is not None and candidate_warmup_path.exists():
             warmup_frame = pd.read_csv(candidate_warmup_path, parse_dates=["date"])
@@ -330,6 +355,7 @@ def evaluate_saved_model(
 
     return {
         "baseline": config.name,
+        "baseline_asset_symbol": config.asset_symbol,
         "portfolio_value": portfolio_value_series,
         "daily_returns": daily_returns_series,
         "metrics": metrics,
@@ -368,6 +394,8 @@ def save_single_result(
 def plot_rl_equity_curves(
     baseline_results: dict[str, dict[str, pd.Series | pd.DataFrame | dict[str, float] | str]],
     output_path: str | Path,
+    *,
+    title: str = "Backtest of RL Baselines: Equity Curve Comparison",
 ) -> None:
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -409,7 +437,7 @@ def plot_rl_equity_curves(
             label=label_map.get(baseline_name, baseline_name),
         )
 
-    ax.set_title("Backtest of RL Baselines: Equity Curve Comparison")
+    ax.set_title(title)
     ax.set_xlabel("Date")
     ax.set_ylabel("Portfolio Value (USD)")
     ax.xaxis.set_major_locator(mdates.MonthLocator(interval=4))

@@ -1,0 +1,36 @@
+{
+  "scope": "curated_cross_asset_spy_qqq_dia",
+  "raw_results_roots": {
+    "tables": "D:\\MarkovianMDD_RRC_Trading\\results\\tables\\cross_asset\\raw",
+    "figures": "D:\\MarkovianMDD_RRC_Trading\\results\\figures\\cross_asset\\raw"
+  },
+  "summary": {
+    "metrics_table": "D:\\MarkovianMDD_RRC_Trading\\results\\tables\\cross_asset\\summary\\cross_asset_metrics_spy_qqq_dia.csv",
+    "proposed_rank_summary": "D:\\MarkovianMDD_RRC_Trading\\results\\tables\\cross_asset\\summary\\cross_asset_proposed_rank_summary_spy_qqq_dia.csv",
+    "sharpe_heatmap_figure": "D:\\MarkovianMDD_RRC_Trading\\results\\figures\\cross_asset\\summary\\cross_asset_sharpe_heatmap_spy_qqq_dia.png",
+    "baseline_compare_figure": "D:\\MarkovianMDD_RRC_Trading\\results\\figures\\cross_asset\\summary\\cross_asset_proposed_vs_key_baselines_spy_qqq_dia.png"
+  },
+  "assets": {
+    "spy": {
+      "asset_symbol": "SPY",
+      "asset_label": "SPY (S&P 500 ETF)",
+      "figure": "D:\\MarkovianMDD_RRC_Trading\\results\\figures\\cross_asset\\assets\\spy\\cumulative_return_all_methods.png",
+      "metrics_table": "D:\\MarkovianMDD_RRC_Trading\\results\\tables\\cross_asset\\assets\\spy\\all_methods_metrics.csv",
+      "cumulative_table": "D:\\MarkovianMDD_RRC_Trading\\results\\tables\\cross_asset\\assets\\spy\\cumulative_return_all_methods.csv"
+    },
+    "qqq": {
+      "asset_symbol": "QQQ",
+      "asset_label": "QQQ (Nasdaq-100 ETF)",
+      "figure": "D:\\MarkovianMDD_RRC_Trading\\results\\figures\\cross_asset\\assets\\qqq\\cumulative_return_all_methods.png",
+      "metrics_table": "D:\\MarkovianMDD_RRC_Trading\\results\\tables\\cross_asset\\assets\\qqq\\all_methods_metrics.csv",
+      "cumulative_table": "D:\\MarkovianMDD_RRC_Trading\\results\\tables\\cross_asset\\assets\\qqq\\cumulative_return_all_methods.csv"
+    },
+    "dia": {
+      "asset_symbol": "DIA",
+      "asset_label": "DIA (Dow Jones ETF)",
+      "figure": "D:\\MarkovianMDD_RRC_Trading\\results\\figures\\cross_asset\\assets\\dia\\cumulative_return_all_methods.png",
+      "metrics_table": "D:\\MarkovianMDD_RRC_Trading\\results\\tables\\cross_asset\\assets\\dia\\all_methods_metrics.csv",
+      "cumulative_table": "D:\\MarkovianMDD_RRC_Trading\\results\\tables\\cross_asset\\assets\\dia\\cumulative_return_all_methods.csv"
+    }
+  }
+}

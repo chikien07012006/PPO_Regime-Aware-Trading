@@ -1,0 +1,13 @@
+{
+  "method": "ppo_hybrid_regime_aware_policy",
+  "metrics": {
+    "Total Return": 0.28110869327245136,
+    "Annualized Return": 0.08619923369471483,
+    "Sharpe Ratio": 0.6622606945686557,
+    "Sortino Ratio": 0.862211040357588,
+    "Calmar Ratio": 0.48381114111416623,
+    "MDD": -0.17816711185320588,
+    "Turnover": 55.59143933975656
+  },
+  "model_path": "D:\\MarkovianMDD_RRC_Trading\\results\\models\\cross_asset\\dia\\ppo_hybrid_regime_aware_policy\\ppo_hybrid_regime_aware_policy.zip"
+}
