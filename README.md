@@ -1,6 +1,23 @@
-# PPO Hybrid Regime-Aware Policy for RL Trading
+# PPO-HRAP: Hybrid Regime-Aware Policy for Risk-Controlled Trading
 
-This repository contains a research-oriented reinforcement learning framework for single-asset trading under changing volatility regimes. The core contribution is **PPO Hybrid Regime-Aware Policy (PPO-HRAP)**, a hybrid control design that combines drawdown-aware reward shaping, volatility-conditioned risk control, and a regime-guided action prior.
+[![arXiv](https://img.shields.io/badge/arXiv-2610.01325-b31b1b.svg)](https://arxiv.org/abs/2610.01325)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
+
+Official implementation of the paper:
+
+> **PPO-HRAP: Proximal Policy Optimization with a Hybrid Regime-Aware Policy for Risk-Controlled Trading**
+> Duong Hien Chi Kien, Thanh Trung Huynh
+> arXiv:2610.01325, 2026 · [Paper](https://arxiv.org/abs/2610.01325) · [PDF](https://arxiv.org/pdf/2610.01325)
+
+### Highlights (SPY, held-out test 2020–2022)
+
+| Metric | PPO-HRAP | Buy & Hold |
+|---|---|---|
+| Total return | 27.62% | – |
+| Sharpe ratio | 0.6447 | – |
+| Max drawdown | **18.47%** | 34.10% |
+
+Across 5 seeds: mean total return 0.2725 ± 0.0109, mean Sharpe 0.6219 ± 0.0565.
 
 The project is organized to support:
 
